@@ -18,9 +18,8 @@ const getMeHandler = async (req, res) => {
 
     const user = await userModel.findOne(
       { email: tokenPayload.email },
-      "firstName lastName role"
-    );
-
+      "firstName lastName role todos"
+    ).populate("todos").lean();
     return res.status(200).json({ data: user });
   } catch (error) {
     return res

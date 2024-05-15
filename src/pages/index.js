@@ -1,10 +1,41 @@
 import { faTrash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { useRouter } from "next/router";
-import React from "react";
+import React, { useState } from "react";
 import { verifyToken } from "../../utils/authUtils";
+import axios from "axios";
+import useCreateToDo from "@/hooks/useCreateToDo";
+import connectedToDB from "../../config/db";
+import userModel from "../../models/user";
+import todoModel from "../../models/todo";
+import { toast } from "react-toastify";
+function Todos({ user, todos }) {
+  const [isShowInput, setIsShowInput] = useState(false);
+  const [allTodos, SetAllToDos] = useState([...todos]);
+  const [title, setTitle] = useState("");
+  const getToDos = async () => {
+    const res = await axios.get("api/todos");
+    SetAllToDos(res.data.data);
+  };
 
-function Todos() {
+  const submitToDoHandler = async (e) => {
+    e.preventDefault();
+    const newToDo = {
+      title,
+      isComplete: false,
+    };
+    await useCreateToDo(newToDo);
+    await getToDos();
+  };
+  const deleteToDoHandler = async (id) => {
+    try {
+      const res = await axios.delete(`/api/todos/${id}`);
+      if (res.status !== 200) throw new Error(res);
+      await getToDos();
+      return toast.success(res.data?.message);
+    } catch (error) {
+      return toast.error(error?.response?.data?.message);
+    }
+  };
   return (
     <>
       <h1>Next-Todos</h1>
@@ -16,26 +47,30 @@ function Todos() {
       <div className="container">
         <div
           className="form-container"
-          //   style={{ display: `${isShowInput ? "block" : "none"}` }}
+          style={{ display: `${isShowInput ? "block" : "none"}` }}
         >
-          <div className="add-form">
-            <input
-              id="input"
-              type="text"
-              //   value={title}
-              //   onChange={(event) => setTitle(event.target.value)}
-              placeholder="Type your To-Do works..."
-            />
-            <button type="submit" id="submit">
-              ADD
-            </button>
+          <div className="">
+            <form className="add-form" onSubmit={submitToDoHandler}>
+              <input
+                id="input"
+                type="text"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Type your To-Do works..."
+              />
+              <button type="submit" id="submit">
+                ADD
+              </button>
+            </form>
           </div>
         </div>
         <div className="head">
           <div className="date">
-            <p>{/* {user.firstname} {user.lastname} */}</p>
+            <p>
+              {user?.firstName} {user?.lastName}
+            </p>
           </div>
-          <div className="add">
+          <div className="add" onClick={() => setIsShowInput((is) => !is)}>
             <svg
               width="2rem"
               height="2rem"
@@ -59,17 +94,24 @@ function Todos() {
         <div className="pad">
           <div id="todo">
             <ul id="tasksContainer">
-              <li>
-                <span className="mark">
-                  <input type="checkbox" className="checkbox" />
-                </span>
-                <div className="list">
-                  <p>test todo</p>
-                </div>
-                <span className="delete">
-                  <FontAwesomeIcon icon={faTrash} />
-                </span>
-              </li>
+              {allTodos?.map((todo) => {
+                return (
+                  <li key={todo?._id}>
+                    <span className="mark">
+                      <input type="checkbox" className="checkbox" />
+                    </span>
+                    <div className="list">
+                      <p>{todo?.title}</p>
+                    </div>
+                    <span
+                      className="delete"
+                      onClick={() => deleteToDoHandler(todo?._id)}
+                    >
+                      <FontAwesomeIcon icon={faTrash} />
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>
@@ -79,17 +121,27 @@ function Todos() {
 }
 
 export async function getServerSideProps(context) {
-try {
+  connectedToDB();
   const { token } = context.req.cookies;
   const tokenVerification = verifyToken(token);
   if (!token || !tokenVerification) {
     return { redirect: { destination: "/signup" } };
   }
-} catch (error) {
-  console.log(error);
-}
+  const user = await userModel.findOne(
+    {
+      email: tokenVerification.email,
+    },
+    "firstName lastName"
+  );
+
+  const todos = await todoModel.find({
+    user: user._id,
+  });
   return {
-    props: {},
+    props: {
+      user: JSON.parse(JSON.stringify(user)),
+      todos: JSON.parse(JSON.stringify(todos)),
+    },
   };
 }
 export default Todos;

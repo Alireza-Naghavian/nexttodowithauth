@@ -1,5 +1,4 @@
-import { required } from "joi";
-
+import todo from "./todo";
 const { default: mongoose } = require("mongoose");
 
 const schema = mongoose.Schema(
@@ -32,6 +31,11 @@ const schema = mongoose.Schema(
 
   { timestamps: true }
 );
+schema.virtual("todos", {
+  ref: "todo",
+  localField: "_id",
+  foreignField: "user",
+});
 
 const userModel = mongoose.models.user || mongoose.model("user", schema);
 
