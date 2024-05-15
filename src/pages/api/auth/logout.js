@@ -19,7 +19,7 @@ const logoutHanlder = async (req, res) => {
           path: "/",
           maxAge: 0,
         })
-      )
+      ).status(200)
       .json({ message: "خروج با موفقیت انجام شد !" });
   } catch (error) {}
 };

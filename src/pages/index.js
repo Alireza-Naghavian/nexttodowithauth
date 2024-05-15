@@ -8,10 +8,13 @@ import connectedToDB from "../../config/db";
 import userModel from "../../models/user";
 import todoModel from "../../models/todo";
 import { toast } from "react-toastify";
+import { useRouter } from "next/router";
 function Todos({ user, todos }) {
   const [isShowInput, setIsShowInput] = useState(false);
   const [allTodos, SetAllToDos] = useState([...todos]);
   const [title, setTitle] = useState("");
+  const [done, setDone] = useState(false);
+  const { replace } = useRouter();
   const getToDos = async () => {
     const res = await axios.get("api/todos");
     SetAllToDos(res.data.data);
@@ -25,6 +28,7 @@ function Todos({ user, todos }) {
     };
     await useCreateToDo(newToDo);
     await getToDos();
+    setTitle("");
   };
   const deleteToDoHandler = async (id) => {
     try {
@@ -34,6 +38,31 @@ function Todos({ user, todos }) {
       return toast.success(res.data?.message);
     } catch (error) {
       return toast.error(error?.response?.data?.message);
+    }
+  };
+
+  const doneHandler = async (id, todo) => {
+
+    try {
+      const res= await axios.put(`/api/todos/${id}`,{
+        isComplete : !todo.isComplete
+      })
+      if(res.status !== 201) throw new Error(res)
+        toast.success("وضعیت تسک آپدیت شد .");
+      await getToDos();
+    } catch (error) {
+      toast.error(error?.response?.data?.message)
+    }
+  };
+console.log(allTodos);
+  const logoutHandler = async () => {
+    try {
+      const res = await axios.get("/api/auth/logout");
+      if (res.status !== 200) throw new Error(res);
+      toast.success(res?.data?.message);
+      return replace("/signin");
+    } catch (error) {
+      toast.error(error?.response?.data?.message);
     }
   };
   return (
@@ -87,7 +116,7 @@ function Todos({ user, todos }) {
               />
             </svg>
           </div>
-          <div className="time">
+          <div className="time" onClick={logoutHandler}>
             <a href="#">Logout</a>
           </div>
         </div>
@@ -98,7 +127,12 @@ function Todos({ user, todos }) {
                 return (
                   <li key={todo?._id}>
                     <span className="mark">
-                      <input type="checkbox" className="checkbox" />
+                      <input
+                        type="checkbox"
+                       checked={todo?.isComplete}
+                        onChange={() => doneHandler(todo?._id, todo)}
+                        className="checkbox"
+                      />
                     </span>
                     <div className="list">
                       <p>{todo?.title}</p>
